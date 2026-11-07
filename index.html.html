@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f4">
+  <title>Private Notes</title>
+  <style>
+    :root { color-scheme: light; --ink:#202521; --muted:#66706a; --line:#dfe4df; --paper:#fff; --bg:#f4f6f3; --accent:#315d4b; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; padding:28px 16px; display:grid; place-items:center; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    main { width:min(100%,620px); }
+    .top { text-align:center; margin-bottom:22px; }
+    .mark { display:inline-grid; place-items:center; width:44px; height:44px; border-radius:14px; background:#e4eee7; color:var(--accent); font-size:22px; }
+    h1 { margin:10px 0 4px; font-size:25px; letter-spacing:-.5px; }
+    .sub { margin:0; color:var(--muted); font-size:14px; }
+    .card { background:var(--paper); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 10px 35px rgba(25,45,32,.06); }
+    .tabs { display:flex; gap:8px; padding:4px; background:#f0f3f0; border-radius:12px; margin-bottom:20px; }
+    .tab { flex:1; border:0; border-radius:9px; padding:10px; background:transparent; color:var(--muted); font:600 14px system-ui; cursor:pointer; }
+    .tab[aria-selected="true"] { background:white; color:var(--ink); box-shadow:0 1px 4px rgba(0,0,0,.08); }
+    .panel[hidden] { display:none; }
+    label { display:block; font-size:13px; font-weight:650; margin:15px 0 7px; }
+    textarea, input { width:100%; border:1px solid #d5ddd6; border-radius:10px; padding:12px 13px; background:#fff; color:var(--ink); font:15px/1.5 system-ui; outline:none; }
+    textarea { min-height:132px; resize:vertical; }
+    input:focus, textarea:focus { border-color:#6c927c; box-shadow:0 0 0 3px rgba(49,93,75,.12); }
+    .hint { color:var(--muted); font-size:12px; margin:6px 0 0; }
+    .action { width:100%; border:0; border-radius:10px; padding:12px 15px; margin-top:17px; background:var(--accent); color:white; font:650 15px system-ui; cursor:pointer; }
+    .action:disabled { opacity:.6; cursor:wait; }
+    .secondary { background:#eaf0eb; color:var(--accent); margin-top:9px; }
+    .result { margin-top:16px; padding:13px; border:1px solid var(--line); border-radius:10px; background:#f8faf8; }
+    .result[hidden] { display:none; }
+    .result textarea { min-height:110px; font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace; overflow-wrap:anywhere; }
+    .status { min-height:22px; margin:12px 0 0; color:var(--accent); font-size:13px; }
+    .warning { margin:18px 2px 0; color:var(--muted); font-size:12px; text-align:center; }
+    .warning strong { color:#4f5c53; }
+    @media (max-width:420px) { .card{padding:17px;} body{padding:20px 12px;} }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="top">
+      <div class="mark" aria-hidden="true">✉</div>
+      <h1>Private Notes</h1>
+      <p class="sub">A simple place to lock and unlock a note.</p>
+    </header>
+
+    <section class="card" aria-label="Private note tool">
+      <div class="tabs" role="tablist" aria-label="Choose an action">
+        <button class="tab" id="makeTab" role="tab" aria-selected="true" aria-controls="makePanel" type="button">Create a note</button>
+        <button class="tab" id="readTab" role="tab" aria-selected="false" aria-controls="readPanel" type="button">Open a note</button>
+      </div>
+
+      <section class="panel" id="makePanel" role="tabpanel" aria-labelledby="makeTab">
+        <label for="message">Your note</label>
+        <textarea id="message" placeholder="Write your note here..."></textarea>
+        <label for="makePassword">Shared password</label>
+        <input id="makePassword" type="password" autocomplete="new-password" placeholder="Use a long password or phrase">
+        <p class="hint">Use at least 12 characters. Don't use a password she or her mum could easily guess.</p>
+        <button class="action" id="encryptButton" type="button">Encrypt note</button>
+        <div class="result" id="encryptedResult" hidden>
+          <label for="ciphertext">Encrypted note — copy and send this</label>
+          <textarea id="ciphertext" readonly></textarea>
+          <button class="action secondary" id="copyButton" type="button">Copy encrypted note</button>
+        </div>
+        <p class="status" id="makeStatus" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel" id="readPanel" role="tabpanel" aria-labelledby="readTab" hidden>
+        <label for="incoming">Encrypted note</label>
+        <textarea id="incoming" placeholder="Paste the encrypted text here..."></textarea>
+        <label for="readPassword">Shared password</label>
+        <input id="readPassword" type="password" autocomplete="off" placeholder="Enter the shared password">
+        <button class="action" id="decryptButton" type="button">Unlock note</button>
+        <div class="result" id="plainResult" hidden>
+          <label for="plaintext">Unlocked note</label>
+          <textarea id="plaintext" readonly></textarea>
+        </div>
+        <p class="status" id="readStatus" role="status" aria-live="polite"></p>
+      </section>
+    </section>
+
+    <p class="warning"><strong>Privacy tip:</strong> Send the encrypted note and the password separately. This page does not save notes, but browser history and screenshots may remain on the phone. Use HTTPS when hosting it.</p>
+  </main>
+
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    const ITERATIONS = 310000;
+
+    function setTab(which) {
+      const make = which === 'make';
+      $('makeTab').setAttribute('aria-selected', String(make));
+      $('readTab').setAttribute('aria-selected', String(!make));
+      $('makePanel').hidden = !make;
+      $('readPanel').hidden = make;
+      $('makeStatus').textContent = '';
+      $('readStatus').textContent = '';
+    }
+    $('makeTab').addEventListener('click', () => setTab('make'));
+    $('readTab').addEventListener('click', () => setTab('read'));
+
+    function toBase64(bytes) {
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary);
+    }
+    function fromBase64(value) {
+      const binary = atob(value);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+    async function deriveKey(password, salt) {
+      const material = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: ITERATIONS, hash: 'SHA-256' },
+        material,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    $('encryptButton').addEventListener('click', async () => {
+      const message = $('message').value;
+      const password = $('makePassword').value;
+      $('makeStatus').textContent = '';
+      $('encryptedResult').hidden = true;
+      if (!message.trim()) { $('makeStatus').textContent = 'Please write a note first.'; return; }
+      if (password.length < 12) { $('makeStatus').textContent = 'Please use a password with at least 12 characters.'; return; }
+      if (!window.crypto?.subtle) { $('makeStatus').textContent = 'Encryption is unavailable. Open this page using a modern browser over HTTPS.'; return; }
+      const button = $('encryptButton');
+      button.disabled = true;
+      button.textContent = 'Encrypting...';
+      try {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const key = await deriveKey(password, salt);
+        const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(message)));
+        const combined = new Uint8Array(salt.length + iv.length + encrypted.length);
+        combined.set(salt, 0);
+        combined.set(iv, salt.length);
+        combined.set(encrypted, salt.length + iv.length);
+        $('ciphertext').value = 'PN1.' + toBase64(combined);
+        $('encryptedResult').hidden = false;
+        $('makeStatus').textContent = 'Done. Copy the encrypted note and send it to the recipient.';
+      } catch (error) {
+        $('makeStatus').textContent = 'Could not encrypt the note. Please try again.';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Encrypt note';
+      }
+    });
+
+    $('copyButton').addEventListener('click', async () => {
+      const status = $('makeStatus');
+      try {
+        await navigator.clipboard.writeText($('ciphertext').value);
+        status.textContent = 'Encrypted note copied.';
+      } catch (error) {
+        $('ciphertext').focus();
+        $('ciphertext').select();
+        status.textContent = 'Select the text and copy it manually.';
+      }
+    });
+
+    $('decryptButton').addEventListener('click', async () => {
+      $('plainResult').hidden = true;
+      $('readStatus').textContent = '';
+      const blob = $('incoming').value.trim();
+      const password = $('readPassword').value;
+      if (!blob.startsWith('PN1.')) { $('readStatus').textContent = 'That note format is not recognised. Paste the complete encrypted text.'; return; }
+      if (!password) { $('readStatus').textContent = 'Enter the shared password.'; return; }
+      if (!window.crypto?.subtle) { $('readStatus').textContent = 'Decryption is unavailable. Open this page using a modern browser over HTTPS.'; return; }
+      const button = $('decryptButton');
+      button.disabled = true;
+      button.textContent = 'Unlocking...';
+      try {
+        const data = fromBase64(blob.slice(4));
+        if (data.length < 45) throw new Error('Invalid note');
+        const salt = data.slice(0, 16);
+        const iv = data.slice(16, 28);
+        const encrypted = data.slice(28);
+        const key = await deriveKey(password, salt);
+        const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted);
+        $('plaintext').value = decoder.decode(plaintext);
+        $('plainResult').hidden = false;
+        $('readStatus').textContent = 'Note unlocked.';
+      } catch (error) {
+        $('readStatus').textContent = 'Could not unlock it. Check the encrypted text and password.';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Unlock note';
+      }
+    });
+  </script>
+</body>
+</html>
