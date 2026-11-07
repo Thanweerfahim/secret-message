@@ -1,0 +1,831 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff7f7">
+  <meta name="description" content="A little place to create and open password-protected notes.">
+  <title>A Note for Hishma</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #38272d;
+      --muted: #806c73;
+      --line: #f0dce1;
+      --paper: rgba(255,255,255,.95);
+      --accent: #a83d61;
+      --accent-dark: #842746;
+      --shadow: 0 24px 70px rgba(111,45,68,.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 34px 16px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(ellipse at 12% 12%, rgba(244,190,204,.34), transparent 34%),
+        radial-gradient(ellipse at 88% 84%, rgba(235,207,222,.42), transparent 34%),
+        linear-gradient(145deg,#fff8f6,#fff1f4 55%,#fdf7fa);
+      color: var(--ink);
+      font: 16px/1.55 system-ui,sans-serif;
+    }
+
+    main { width: min(100%,650px); }
+    .top { text-align: center; margin-bottom: 25px; }
+
+    .eyebrow {
+      margin: 12px 0 4px;
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+    }
+
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      border: 1px solid rgba(168,61,97,.12);
+      border-radius: 22px;
+      background: linear-gradient(145deg,#fff,#ffe8ee);
+      color: var(--accent);
+      font-size: 27px;
+      box-shadow: 0 9px 24px rgba(168,61,97,.12);
+    }
+
+    h1 {
+      margin: 3px 0 5px;
+      color: #5a2d3d;
+      font: 500 clamp(29px,6vw,38px)/1.18 Georgia,serif;
+      letter-spacing: -.04em;
+    }
+
+    .sub { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .card {
+      overflow: hidden;
+      background: var(--paper);
+      border: 1px solid rgba(240,220,225,.95);
+      border-radius: 25px;
+      padding: 25px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 7px;
+      padding: 5px;
+      background: #fff1f4;
+      border: 1px solid #f8e5e9;
+      border-radius: 14px;
+      margin-bottom: 22px;
+    }
+
+    .tab {
+      flex: 1;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 9px;
+      background: transparent;
+      color: var(--muted);
+      font: 650 14px system-ui,sans-serif;
+      cursor: pointer;
+    }
+
+    .tab[aria-selected="true"] {
+      background: white;
+      color: var(--accent-dark);
+      box-shadow: 0 2px 9px rgba(117,49,71,.09);
+    }
+
+    .panel[hidden], .result[hidden] { display: none; }
+
+    .section-heading {
+      margin: 0 0 5px;
+      font: 500 21px Georgia,serif;
+      color: #5a2d3d;
+    }
+
+    .section-copy {
+      margin: 0 0 15px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #63434e;
+      margin: 15px 0 7px;
+    }
+
+    textarea, input {
+      width: 100%;
+      border: 1px solid #ecd8de;
+      border-radius: 13px;
+      padding: 13px 14px;
+      background: #fffdfd;
+      color: var(--ink);
+      font: 15px/1.6 system-ui,sans-serif;
+      outline: none;
+      transition: border-color .18s, box-shadow .18s;
+    }
+
+    textarea {
+      min-height: 158px;
+      resize: vertical;
+    }
+
+    textarea::placeholder, input::placeholder { color: #b39ca4; }
+
+    input:focus, textarea:focus {
+      border-color: #ca8299;
+      box-shadow: 0 0 0 4px rgba(168,61,97,.10);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 7px 1px 0;
+    }
+
+    .template-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 9px;
+      padding: 7px 10px;
+      border: 1px solid #f1d9e0;
+      border-radius: 999px;
+      background: #fff8fa;
+      color: var(--accent-dark);
+      font: 650 12px system-ui,sans-serif;
+      cursor: pointer;
+    }
+
+    .action {
+      width: 100%;
+      border: 0;
+      border-radius: 13px;
+      padding: 13px 16px;
+      margin-top: 18px;
+      background: linear-gradient(105deg,var(--accent),#c65d7b);
+      color: white;
+      font: 700 15px system-ui,sans-serif;
+      cursor: pointer;
+      box-shadow: 0 8px 17px rgba(168,61,97,.17);
+      transition: transform .16s, filter .16s;
+    }
+
+    .action:hover {
+      filter: brightness(1.03);
+      transform: translateY(-1px);
+    }
+
+    .action:disabled {
+      opacity: .65;
+      cursor: wait;
+      transform: none;
+    }
+
+    .secondary {
+      background: #fff0f3;
+      color: var(--accent-dark);
+      border: 1px solid #f1d9e0;
+      box-shadow: none;
+      margin-top: 10px;
+    }
+
+    .result {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(145deg,#fffafb,#fff5f7);
+    }
+
+    .result textarea {
+      min-height: 112px;
+      font: 12px/1.5 monospace;
+      overflow-wrap: anywhere;
+    }
+
+    #plaintext {
+      min-height: 175px;
+      padding: 19px;
+      border-color: #f1dce2;
+      background: #fffdfd;
+      color: #573643;
+      font: 16px/1.85 Georgia,serif;
+      white-space: pre-wrap;
+    }
+
+    .after-note {
+      margin-top: 18px;
+      padding: 20px 17px;
+      border: 1px solid #f0d5de;
+      border-radius: 16px;
+      background: linear-gradient(145deg,#fff1f4,#fff9fa);
+      text-align: center;
+    }
+
+    .after-note .heart {
+      margin: 0 0 7px;
+      color: var(--accent);
+      font-size: 23px;
+    }
+
+    .after-note h3 {
+      margin: 0 0 9px;
+      color: #71384e;
+      font: 500 23px/1.25 Georgia,serif;
+    }
+
+    .after-note p {
+      margin: 0;
+      color: #765b65;
+      font: italic 15px/1.8 Georgia,serif;
+    }
+
+    .after-note .signoff {
+      margin-top: 12px;
+      color: var(--accent-dark);
+    }
+
+    .status {
+      min-height: 22px;
+      margin: 12px 0 0;
+      color: var(--accent-dark);
+      font-size: 13px;
+    }
+
+    .privacy {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin: 17px 4px 0;
+      color: #826f76;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .privacy span:first-child {
+      color: var(--accent);
+      font-size: 14px;
+    }
+
+    .bottom {
+      margin: 17px 0 0;
+      text-align: center;
+      color: #a0838d;
+      font: italic 13px Georgia,serif;
+    }
+
+    @media (max-width:460px) {
+      body { padding: 23px 12px; }
+      .card { padding: 18px; border-radius: 21px; }
+      .top { margin-bottom: 20px; }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<main>
+
+  <header class="top">
+    <div class="mark" aria-hidden="true">♡</div>
+    <p class="eyebrow">A little something from me to you</p>
+    <h1>A Note for You</h1>
+    <p class="sub">Some words are worth keeping close.</p>
+  </header>
+
+  <section class="card" aria-label="Private note tool">
+
+    <div class="tabs" role="tablist" aria-label="Choose an action">
+      <button class="tab" id="makeTab" role="tab"
+        aria-selected="true" aria-controls="makePanel" type="button">
+        Write a note
+      </button>
+
+      <button class="tab" id="readTab" role="tab"
+        aria-selected="false" aria-controls="readPanel" type="button">
+        Read a note
+      </button>
+    </div>
+
+    <!-- CREATE MESSAGE -->
+    <section class="panel" id="makePanel"
+      role="tabpanel" aria-labelledby="makeTab">
+
+      <h2 class="section-heading">A message from the heart</h2>
+      <p class="section-copy">
+        Write something only the person with your shared password can read.
+      </p>
+
+      <label for="message">Your message</label>
+      <textarea id="message"
+        placeholder="Write your own words here..."
+        spellcheck="true"></textarea>
+
+      <button class="template-button" id="templateButton" type="button">
+        ♡ Add a sweet message
+      </button>
+
+      <label for="makePassword">Shared password</label>
+      <input id="makePassword" type="password"
+        autocomplete="new-password"
+        placeholder="Choose a private passphrase">
+
+      <p class="hint">
+        Use at least 12 characters. Choose something hard for anyone else to guess.
+      </p>
+
+      <button class="action" id="encryptButton" type="button">
+        Lock this message ♡
+      </button>
+
+      <div class="result" id="encryptedResult" hidden>
+        <label for="ciphertext">
+          Your locked message — copy and send this
+        </label>
+
+        <textarea id="ciphertext" readonly spellcheck="false"></textarea>
+
+        <button class="action secondary" id="copyButton" type="button">
+          Copy locked message
+        </button>
+      </div>
+
+      <p class="status" id="makeStatus" role="status"
+        aria-live="polite"></p>
+    </section>
+
+    <!-- READ MESSAGE -->
+    <section class="panel" id="readPanel"
+      role="tabpanel" aria-labelledby="readTab" hidden>
+
+      <h2 class="section-heading">A little note for you</h2>
+
+      <p class="section-copy">
+        Paste the locked message and enter the passphrase you agreed on.
+      </p>
+
+      <label for="incoming">Locked message</label>
+      <textarea id="incoming"
+        placeholder="Paste the complete encrypted message here..."
+        spellcheck="false"></textarea>
+
+      <label for="readPassword">Shared password</label>
+      <input id="readPassword" type="password"
+        autocomplete="off"
+        placeholder="Enter your private passphrase">
+
+      <button class="action" id="decryptButton" type="button">
+        Open my message ♡
+      </button>
+
+      <!-- SHOWN ONLY AFTER SUCCESSFUL DECRYPTION -->
+      <div class="result" id="plainResult" hidden>
+
+        <label for="plaintext">A message for you</label>
+        <textarea id="plaintext" readonly></textarea>
+
+        <!-- HISHMA'S PERSONAL WELCOME -->
+        <section class="after-note" id="afterNote"
+          aria-live="polite">
+
+          <p class="heart" aria-hidden="true">♡</p>
+
+          <h3>And one more thing, Hishma...</h3>
+
+          <p>
+            I made this little corner just for you.
+            I hope it brings a smile to your face and reminds
+            you that someone is thinking of you.
+            Even an ordinary day feels a little more special
+            because you're in it.
+          </p>
+
+          <p class="signoff">
+            With love, always. ♡
+          </p>
+
+        </section>
+      </div>
+
+      <p class="status" id="readStatus"
+        role="status" aria-live="polite"></p>
+    </section>
+  </section>
+
+  <p class="privacy">
+    <span aria-hidden="true">♡</span>
+    <span>
+      <strong>A small privacy reminder:</strong>
+      The message is encrypted in your browser and this page
+      does not send it to a server. Send the locked message
+      and passphrase separately. A shared phone may still keep
+      browser history, screenshots, or copied text.
+    </span>
+  </p>
+
+  <p class="bottom">Made with a little extra care.</p>
+
+</main>
+
+<script>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder('utf-8', { fatal: true });
+
+const PBKDF2_ITERATIONS = 310000;
+const FORMAT_PREFIX = 'PN1.';
+
+const sweetMessage = `Hey, my favourite person ♡
+
+I just wanted to remind you how much you mean to me.
+You make ordinary days feel a little brighter, and even
+when we're busy or can't talk, you're still in my thoughts.
+I hope this little note brings a smile to your face.
+
+Take care of yourself, keep smiling, and never forget
+how special you are to me. ♡`;
+
+
+/* SWITCH BETWEEN WRITE AND READ */
+
+function setTab(which) {
+  const showMake = which === 'make';
+
+  $('makeTab').setAttribute(
+    'aria-selected',
+    String(showMake)
+  );
+
+  $('readTab').setAttribute(
+    'aria-selected',
+    String(!showMake)
+  );
+
+  $('makePanel').hidden = !showMake;
+  $('readPanel').hidden = showMake;
+
+  $('makeStatus').textContent = '';
+  $('readStatus').textContent = '';
+}
+
+$('makeTab').addEventListener('click', () => setTab('make'));
+$('readTab').addEventListener('click', () => setTab('read'));
+
+
+/* SWEET MESSAGE TEMPLATE */
+
+$('templateButton').addEventListener('click', () => {
+  $('message').value = sweetMessage;
+  $('message').focus();
+
+  $('makeStatus').textContent =
+    'A sample message has been added. Edit it to make it yours.';
+});
+
+
+/* BASE64URL ENCODING */
+
+function bytesToBase64Url(bytes) {
+  let binary = '';
+  const chunkSize = 0x8000;
+
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(
+      offset,
+      Math.min(offset + chunkSize, bytes.length)
+    );
+
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+
+function base64UrlToBytes(value) {
+  const clean = value
+    .replace(/\s+/g, '')
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean)) {
+    throw new Error('Invalid encoded message');
+  }
+
+  const unpadded = clean.replace(/=+$/g, '');
+
+  const padded =
+    unpadded + '='.repeat((4 - (unpadded.length % 4)) % 4);
+
+  const binary = atob(padded);
+
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+
+/* CHECK BROWSER CRYPTOGRAPHY SUPPORT */
+
+function checkCryptoSupport() {
+  return Boolean(
+    window.crypto &&
+    window.crypto.subtle &&
+    window.crypto.getRandomValues
+  );
+}
+
+
+/* DERIVE ENCRYPTION KEY USING PBKDF2 */
+
+async function deriveKey(passphrase, salt) {
+
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(passphrase),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: PBKDF2_ITERATIONS,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    {
+      name: 'AES-GCM',
+      length: 256
+    },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+
+/* ENCRYPT MESSAGE */
+
+$('encryptButton').addEventListener('click', async () => {
+
+  const message = $('message').value;
+  const passphrase = $('makePassword').value;
+
+  const button = $('encryptButton');
+
+  $('makeStatus').textContent = '';
+  $('encryptedResult').hidden = true;
+  $('ciphertext').value = '';
+
+  if (!message.trim()) {
+    $('makeStatus').textContent =
+      'Please write a message first.';
+    return;
+  }
+
+  if (passphrase.length < 12) {
+    $('makeStatus').textContent =
+      'Please use a passphrase with at least 12 characters.';
+    return;
+  }
+
+  if (!checkCryptoSupport()) {
+    $('makeStatus').textContent =
+      'Encryption is unavailable. Open this page in a modern browser using HTTPS.';
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Locking your message...';
+
+  try {
+
+    const salt = crypto.getRandomValues(
+      new Uint8Array(16)
+    );
+
+    const iv = crypto.getRandomValues(
+      new Uint8Array(12)
+    );
+
+    const key = await deriveKey(passphrase, salt);
+
+    const encrypted = new Uint8Array(
+      await crypto.subtle.encrypt(
+        {
+          name: 'AES-GCM',
+          iv: iv
+        },
+        key,
+        encoder.encode(message)
+      )
+    );
+
+    // Payload: 16-byte salt + 12-byte IV + encrypted data.
+
+    const payload = new Uint8Array(
+      salt.length + iv.length + encrypted.length
+    );
+
+    payload.set(salt, 0);
+    payload.set(iv, salt.length);
+    payload.set(encrypted, salt.length + iv.length);
+
+    $('ciphertext').value =
+      FORMAT_PREFIX + bytesToBase64Url(payload);
+
+    $('encryptedResult').hidden = false;
+
+    $('makeStatus').textContent =
+      'Your message is locked. Copy the encrypted text and send it to her.';
+
+  } catch (error) {
+
+    console.error('Encryption failed:', error);
+
+    $('makeStatus').textContent =
+      'Could not lock the message. Please try again.';
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent = 'Lock this message ♡';
+  }
+});
+
+
+/* COPY ENCRYPTED MESSAGE */
+
+$('copyButton').addEventListener('click', async () => {
+
+  const ciphertext = $('ciphertext').value;
+  const status = $('makeStatus');
+
+  try {
+
+    if (!navigator.clipboard ||
+        !navigator.clipboard.writeText) {
+      throw new Error('Clipboard API unavailable');
+    }
+
+    await navigator.clipboard.writeText(ciphertext);
+
+    status.textContent =
+      'Locked message copied. Send the passphrase separately.';
+
+  } catch (error) {
+
+    $('ciphertext').focus();
+    $('ciphertext').select();
+
+    status.textContent =
+      'Automatic copy is unavailable. Select the locked text and copy it manually.';
+  }
+});
+
+
+/* HIDE OLD MESSAGE WHEN INPUT CHANGES */
+
+$('incoming').addEventListener('input', () => {
+  $('plainResult').hidden = true;
+  $('readStatus').textContent = '';
+});
+
+$('readPassword').addEventListener('input', () => {
+  $('plainResult').hidden = true;
+  $('readStatus').textContent = '';
+});
+
+
+/* DECRYPT MESSAGE */
+
+$('decryptButton').addEventListener('click', async () => {
+
+  const lockedText = $('incoming').value.trim();
+  const passphrase = $('readPassword').value;
+
+  const button = $('decryptButton');
+
+  $('plainResult').hidden = true;
+  $('plaintext').value = '';
+  $('readStatus').textContent = '';
+
+  if (!lockedText.startsWith(FORMAT_PREFIX)) {
+
+    $('readStatus').textContent =
+      'That message format is not recognised. Paste the complete encrypted text.';
+
+    return;
+  }
+
+  if (!passphrase) {
+
+    $('readStatus').textContent =
+      'Enter the shared passphrase.';
+
+    return;
+  }
+
+  if (!checkCryptoSupport()) {
+
+    $('readStatus').textContent =
+      'Decryption is unavailable. Open this page in a modern browser using HTTPS.';
+
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Opening your message...';
+
+  try {
+
+    const payload = base64UrlToBytes(
+      lockedText.slice(FORMAT_PREFIX.length)
+    );
+
+    // 16 salt + 12 IV + at least 16 authentication-tag bytes.
+
+    if (payload.length < 44) {
+      throw new Error('Encrypted message is too short');
+    }
+
+    const salt = payload.slice(0, 16);
+    const iv = payload.slice(16, 28);
+    const encrypted = payload.slice(28);
+
+    const key = await deriveKey(passphrase, salt);
+
+    const decrypted = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: iv
+      },
+      key,
+      encrypted
+    );
+
+    $('plaintext').value = decoder.decode(decrypted);
+
+    // Reveal decrypted message AND Hishma's welcome card.
+
+    $('plainResult').hidden = false;
+
+    $('readStatus').textContent =
+      'Your message is open. ♡';
+
+    $('plainResult').scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest'
+    });
+
+  } catch (error) {
+
+    console.error('Decryption failed:', error);
+
+    $('readStatus').textContent =
+      'Could not open it. Check that the locked message is complete and the passphrase is correct.';
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent = 'Open my message ♡';
+  }
+});
+
+</script>
+</body>
+</html>
